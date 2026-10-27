@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Дачный Центробанк — Fintech СНТ</title>
+  
+  <!-- FontAwesome & TailwindCSS & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dacha: {
+              dark: '#082b15',
+              main: '#0e4d26',
+              light: '#1b7a3f',
+              gold: '#f3b318',
+              accent: '#ffca28',
+              bg: '#f0f4f1'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f0f4f1; }
+    .glass-panel { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.4); }
+    .gold-gradient { background: linear-gradient(135deg, #f3b318 0%, #d49300 100%); }
+    .green-gradient { background: linear-gradient(135deg, #0e4d26 0%, #1b7a3f 100%); }
+    .hero-glow { box-shadow: 0 20px 40px -15px rgba(14, 77, 38, 0.2); }
+  </style>
+</head>
+<body class="h-full flex flex-col justify-between text-gray-800 antialiased selection:bg-dacha-gold selection:text-dacha-dark">
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО QR ================= -->
+  <div id="qrModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] hidden items-center justify-center p-4">
+    <div class="glass-panel p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl border border-white text-center relative">
+      <button onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-lg font-bold w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition">✕</button>
+      
+      <h3 class="text-base font-black text-gray-900 mb-1 uppercase tracking-wide">Kaspi / ЦБ QR-код счёта</h3>
+      <p id="modalBillInfo" class="text-xs text-gray-500 mb-4 font-medium">Счёт № СНТ-42</p>
+
+      <div id="modalQrBox" class="bg-white p-4 rounded-2xl border-2 border-gray-100 flex flex-col items-center justify-center shadow-inner mx-auto mb-4 w-[180px] h-[180px]"></div>
+
+      <div id="modalBillAmount" class="text-xl font-black text-dacha-dark mb-4">0 ₸</div>
+
+      <button onclick="closeQrModal()" class="w-full green-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:opacity-95 transition">
+        Закрыть окно
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ БАЛАНСА ================= -->
+  <div id="topupModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] hidden items-center justify-center p-4">
+    <div class="glass-panel p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl border border-white text-center relative">
+      <button onclick="closeTopupModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-lg font-bold w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition">✕</button>
+      
+      <h3 class="text-base font-black text-gray-900 mb-1 uppercase tracking-wide">Пополнение кошелька</h3>
+      <p class="text-xs text-gray-500 mb-4 font-medium">Введите сумму пополнения в тенге</p>
+
+      <input type="number" id="topupAmountInput" value="10000" class="w-full px-4 py-3 rounded-xl border border-gray-200 text-center text-lg font-black bg-white outline-none focus:ring-2 focus:ring-dacha-main mb-4">
+
+      <button onclick="confirmTopup()" class="w-full gold-gradient text-dacha-dark py-3.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-md hover:opacity-90 transition active:scale-95">
+        Пополнить с Kaspi / Карты
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= ШАПКА ================= -->
+  <header class="green-gradient text-white shadow-xl border-b border-dacha-gold/30 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 bg-white rounded-2xl flex items-center justify-center shadow-md border border-dacha-gold">
+          <i class="fa-solid fa-house-wheat text-dacha-dark text-xl"></i>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-lg leading-none tracking-wide text-dacha-gold">ДАЧНЫЙ ЦЕНТРОБАНК</h1>
+          <p class="text-[11px] text-green-100 mt-1 flex items-center gap-1.5 font-medium">
+            <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Казахстанская СНТ Экосистема | Валюта: <b>₸</b>
+          </p>
+        </div>
+      </div>
+
+      <div id="userInfoHeader" class="hidden items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <div id="userNameHeader" class="font-bold text-xs tracking-tight">Иванов И.И.</div>
+          <div id="userRoleHeader" class="text-[10px] text-dacha-gold font-semibold uppercase">Касса №1</div>
+        </div>
+        
+        <button onclick="logout()" class="bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 p-2.5 rounded-xl text-xs transition flex items-center gap-1.5" title="Выйти">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span class="hidden sm:inline font-bold">Выход</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= КОНТЕНТ ================= -->
+  <main class="max-w-7xl mx-auto px-6 py-8 w-full flex-grow">
+
+    <!-- 1. АВТОРИЗАЦИЯ -->
+    <div id="authScreen" class="max-w-md mx-auto my-6">
+      <div class="glass-panel p-8 rounded-3xl shadow-2xl hero-glow border border-white">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 green-gradient rounded-2xl mx-auto mb-3 flex items-center justify-center shadow-lg border border-dacha-gold/40">
+            <i class="fa-solid fa-vault text-dacha-gold text-2xl"></i>
+          </div>
+          <h2 class="text-xl font-black text-gray-900 tracking-tight">ВХОД В СИСТЕМУ ЦБ</h2>
+          <p class="text-xs text-gray-500 mt-1">Выберите свою роль для доступа к расчетам</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5 bg-gray-200/70 p-1.5 rounded-2xl mb-6">
+          <button id="tabCashiereBtn" onclick="switchAuthRole('cashier')" class="py-2.5 rounded-xl text-xs font-bold transition bg-dacha-dark text-white shadow-md">
+            <i class="fa-solid fa-cash-register mr-1"></i> Кассир
+          </button>
+          <button id="tabClientBtn" onclick="switchAuthRole('client')" class="py-2.5 rounded-xl text-xs font-bold transition text-gray-600 hover:text-gray-900">
+            <i class="fa-solid fa-house-user mr-1"></i> Дачник
+          </button>
+        </div>
+
+        <form id="cashierForm" onsubmit="handleCashierAuth(event)" class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">ФИО Кассира</label>
+            <input type="text" id="cashierName" required placeholder="Сергеева Ольга Петровна" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">Смена / Касса</label>
+            <input type="text" id="cashierShift" required placeholder="Касса №1 (Главная)" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">ПИН-код (дефолт: 1234)</label>
+            <input type="password" id="cashierPin" required value="1234" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <button type="submit" class="w-full green-gradient text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg hover:opacity-95 transition active:scale-95">
+            Войти в Терминал
+          </button>
+        </form>
+
+        <form id="clientForm" onsubmit="handleClientAuth(event)" class="space-y-4 hidden">
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">ФИО Дачника</label>
+            <input type="text" id="clientName" required placeholder="Иванов Иван Иванович" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">Участок / СНТ</label>
+            <input type="text" id="clientPlot" required placeholder="Участок №42 (СНТ Ягодка)" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">Начальный баланс (₸)</label>
+            <input type="number" id="clientBalance" required value="75000" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/80 text-xs font-medium focus:ring-2 focus:ring-dacha-main outline-none transition">
+          </div>
+          <button type="submit" class="w-full gold-gradient text-dacha-dark py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg hover:opacity-95 transition active:scale-95">
+            Войти в Личный Кабинет
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 2. ИНТЕРФЕЙС КАССИРА -->
+    <div id="cashierApp" class="hidden space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="glass-panel p-5 rounded-2xl shadow-sm border border-white flex items-center justify-between">
+          <div>
+            <div class="text-[11px] uppercase tracking-wider font-bold text-gray-400">Оборот смены</div>
+            <div id="cashierTurnover" class="text-2xl font-black text-dacha-dark mt-0.5">0 ₸</div>
+          </div>
+          <div class="w-12 h-12 bg-green-50 text-dacha-main rounded-xl flex items-center justify-center text-xl font-bold border border-green-200">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+        </div>
+        <div class="glass-panel p-5 rounded-2xl shadow-sm border border-white flex items-center justify-between">
+          <div>
+            <div class="text-[11px] uppercase tracking-wider font-bold text-gray-400">Успешных чеков</div>
+            <div id="cashierBillsCount" class="text-2xl font-black text-dacha-dark mt-0.5">0</div>
+          </div>
+          <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl font-bold border border-amber-200">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+        </div>
+        <div class="glass-panel p-5 rounded-2xl shadow-sm border border-white flex items-center justify-between">
+          <div>
+            <div class="text-[11px] uppercase tracking-wider font-bold text-gray-400">Статус шлюза</div>
+            <div class="text-xs font-bold text-emerald-600 mt-1.5 flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span> Kaspi & ЦБ Онлайн
+            </div>
+          </div>
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl font-bold border border-emerald-200">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-4">
+          <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white">
+            <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-4 flex items-center justify-between">
+              <span><i class="fa-solid fa-store text-dacha-gold mr-2"></i> Каталог услуг и товаров СНТ</span>
+              <span class="text-xs font-normal text-gray-500">Тенге (₸)</span>
+            </h3>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              <button onclick="addToCart('Членский взнос (Месяц)', 15000)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-dacha-main">Членский взнос</div>
+                <div class="text-xs font-black text-dacha-main mt-1">15 000 ₸</div>
+              </button>
+              <button onclick="addToCart('Электричество (кВт)', 3500)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-amber-700">Электричество</div>
+                <div class="text-xs font-black text-amber-600 mt-1">3 500 ₸</div>
+              </button>
+              <button onclick="addToCart('Полив участка сезонный', 2000)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-blue-700">Полив воды</div>
+                <div class="text-xs font-black text-blue-600 mt-1">2 000 ₸</div>
+              </button>
+              <button onclick="addToCart('Мешок картошки (Свежий)', 4500)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-orange-700">Картофель (Мешок)</div>
+                <div class="text-xs font-black text-orange-600 mt-1">4 500 ₸</div>
+              </button>
+              <button onclick="addToCart('Саженцы малина/яблоня', 3000)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-emerald-700">Саженцы элитные</div>
+                <div class="text-xs font-black text-emerald-600 mt-1">3 000 ₸</div>
+              </button>
+              <button onclick="addToCart('Удобрения (Селитра/Навоз)', 2500)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-yellow-700">Удобрения мешок</div>
+                <div class="text-xs font-black text-yellow-600 mt-1">2 500 ₸</div>
+              </button>
+              <button onclick="addToCart('Труба ПНД для полива (метр)', 800)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-cyan-700">Полив. труба (м)</div>
+                <div class="text-xs font-black text-cyan-600 mt-1">800 ₸</div>
+              </button>
+              <button onclick="addToCart('Аренда Лопаты / Инвентаря', 1000)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-purple-700">Аренда инвентаря</div>
+                <div class="text-xs font-black text-purple-600 mt-1">1 000 ₸</div>
+              </button>
+              <button onclick="addToCart('Цеберус Охрана СНТ', 5000)" class="p-3.5 bg-white/80 hover:bg-white border border-gray-200/80 rounded-2xl text-left transition shadow-sm hover:shadow-md group">
+                <div class="font-bold text-xs text-gray-900 group-hover:text-red-700">Охрана СНТ</div>
+                <div class="text-xs font-black text-red-600 mt-1">5 000 ₸</div>
+              </button>
+            </div>
+
+            <h4 class="font-bold text-[11px] text-gray-400 uppercase tracking-wider mb-2">Формирование чека</h4>
+            <div id="cartList" class="space-y-2 max-h-48 overflow-y-auto pr-1 mb-4">
+              <div class="text-center text-gray-400 text-xs py-6">Корзина пуста. Выберите товар выше.</div>
+            </div>
+
+            <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+              <span class="text-xs font-bold text-gray-600 uppercase">Сумма к оплате:</span>
+              <span id="cartTotal" class="text-2xl font-black text-dacha-dark">0 ₸</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white text-center">
+            <h3 class="text-sm font-black text-gray-900 mb-4 uppercase tracking-wider">Параметры счета и QR</h3>
+            
+            <div class="space-y-3 mb-4 text-left">
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">Номер счета:</label>
+                <input type="text" id="customBillIdInput" value="BILL-SNT-2026-001" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-dacha-main">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-gray-600 uppercase tracking-wider mb-1">Получатель (Участок):</label>
+                <input type="text" id="targetPlotInput" value="Участок №42" class="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold bg-white outline-none focus:ring-2 focus:ring-dacha-main">
+              </div>
+            </div>
+
+            <button onclick="generatePaymentBill()" class="w-full green-gradient text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:opacity-95 transition mb-3 active:scale-95">
+              <i class="fa-solid fa-file-invoice-dollar mr-1.5"></i> Выставить счет дачнику
+            </button>
+
+            <button onclick="openQrModal()" class="w-full gold-gradient text-dacha-dark py-3 rounded-xl font-black text-xs uppercase tracking-wider shadow-md hover:opacity-90 transition active:scale-95 flex items-center justify-center gap-2">
+              <i class="fa-solid fa-qrcode text-sm"></i> Открыть QR в отдельном окне
+            </button>
+
+            <div id="billStatus" class="mt-3 hidden text-xs font-bold p-2.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+              Ожидание оплаты от дачника...
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ЖУРНАЛ ОПЕРАЦИЙ ДЛЯ КАССИРА -->
+      <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white">
+        <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider mb-4 flex items-center justify-between">
+          <span><i class="fa-solid fa-book-bookmark text-dacha-main mr-2"></i> Журнал проводок и транзакций смены</span>
+          <span class="text-xs text-gray-400">Всего операций: <span id="journalCount">0</span></span>
+        </h3>
+        <div id="cashierJournalList" class="space-y-2 max-h-60 overflow-y-auto">
+          <div class="text-center text-gray-400 py-6 text-xs font-medium">Пока нет проведенных платежей за эту смену.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. ИНТЕРФЕЙС ДАЧНИКА (РАСШИРЕННЫЙ) -->
+    <div id="clientApp" class="hidden space-y-6">
+      
+      <!-- Карточка баланса с кнопкой пополнения -->
+      <div class="gold-gradient text-dacha-dark p-6 rounded-3xl shadow-xl flex flex-wrap justify-between items-center gap-4 relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 text-black/5 text-8xl font-black pointer-events-none">₸</div>
+        <div>
+          <span class="text-[11px] uppercase tracking-wider font-extrabold opacity-75">Личный кабинет дачника</span>
+          <h2 id="clientPlotTitle" class="text-2xl font-black tracking-tight mt-0.5">Участок №42</h2>
+          <p id="clientNameTitle" class="text-xs font-semibold opacity-90 mt-0.5">Иванов Иван Иванович</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="bg-white/40 backdrop-blur-md px-6 py-3.5 rounded-2xl border border-white/50 text-right shadow-sm">
+            <span class="text-[10px] font-bold uppercase tracking-wider opacity-80 block">Баланс кошелька</span>
+            <span id="clientBalanceDisplay" class="text-3xl font-black">50 000 ₸</span>
+          </div>
+          <button onclick="openTopupModal()" class="bg-dacha-dark text-white font-black px-4 py-3.5 rounded-2xl text-xs uppercase tracking-wider shadow-lg hover:opacity-90 transition active:scale-95 flex items-center gap-2">
+            <i class="fa-solid fa-wallet text-dacha-gold text-base"></i> Пополнить
+          </button>
+        </div>
+      </div>
+
+      <!-- Входящие счета -->
+      <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white">
+        <h3 class="text-sm font-black text-gray-900 mb-4 uppercase tracking-wider flex items-center justify-between">
+          <span><i class="fa-solid fa-bell text-amber-500 mr-2"></i> Счета на оплату услуг СНТ</span>
+          <span id="billsCount" class="bg-amber-100 text-amber-800 text-[11px] font-extrabold px-2.5 py-1 rounded-full">0 счетов</span>
+        </h3>
+
+        <div id="clientBillsList" class="space-y-3">
+          <div class="text-center text-gray-400 py-6 text-xs font-medium">У вас нет активных счетов к оплате.</div>
+        </div>
+      </div>
+
+      <!-- НОВИНКА: ЗАКАЗ СПРАВОК И ДОКУМЕНТОВ СНТ -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white">
+          <h3 class="text-sm font-black text-gray-900 mb-3 uppercase tracking-wider">
+            <i class="fa-solid fa-file-shield text-dacha-main mr-2"></i> Официальные справки СНТ
+          </h3>
+          <p class="text-xs text-gray-500 mb-4">Закажите цифровую справку с печатью Дачного ЦБ для предоставления в госорганы или правление.</p>
+          <div class="space-y-2">
+            <button onclick="requestDocument('Справка о членстве в СНТ')" class="w-full text-left bg-white/70 hover:bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold flex justify-between items-center transition">
+              <span>📄 Справка о членстве в СНТ</span>
+              <i class="fa-solid fa-download text-dacha-main"></i>
+            </button>
+            <button onclick="requestDocument('Акт об отсутствии задолженности по взносам')" class="w-full text-left bg-white/70 hover:bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold flex justify-between items-center transition">
+              <span>📄 Акт об отсутствии задолженности</span>
+              <i class="fa-solid fa-download text-dacha-main"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- НОВИНКА: КНИГА ЖАЛОБ И ПРЕДЛОЖЕНИЙ -->
+        <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-black text-gray-900 mb-3 uppercase tracking-wider">
+              <p><i class="fa-solid fa-comments text-amber-600 mr-2"></i> Жалобы в правление СНТ</p>
+            </h3>
+            <p class="text-xs text-gray-500 mb-3">Сообщите о проблеме с поливом, мусором или дорогами.</p>
+            <textarea id="complaintText" placeholder="Опишите суть вопроса..." class="w-full p-3 rounded-xl border border-gray-200 text-xs bg-white outline-none focus:ring-2 focus:ring-dacha-main h-20 resize-none mb-3"></textarea>
+          </div>
+          <button onclick="sendComplaint()" class="w-full green-gradient text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:opacity-95 transition">
+            Отправить в Правление
+          </button>
+        </div>
+      </div>
+
+      <!-- ИСТОРИЯ И СКАЧИВАНИЕ ЧЕКОВ ДАЧНИКА -->
+      <div class="glass-panel p-6 rounded-3xl shadow-xl border border-white">
+        <h3 class="text-sm font-black text-gray-900 mb-4 uppercase tracking-wider">
+          <i class="fa-solid fa-file-arrow-down text-dacha-main mr-2"></i> Архив чеков и квитанций об оплате
+        </h3>
+        <div id="clientReceiptsList" class="space-y-3">
+          <div class="text-center text-gray-400 py-6 text-xs font-medium">История чеков пуста.</div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ================= ФУТЕР ================= -->
+  <footer class="bg-dacha-dark text-white text-center py-4 text-xs border-t border-dacha-gold/30">
+    <p class="text-gray-400 font-medium">© 2026 Дачный Центробанк Казахстана (₸). Все финансовые права защищены.</p>
+  </footer>
+
+  <!-- ================= ЛОГИКА СКРИПТОВ ================= -->
+  <script>
+    let currentUser = null;
+    let cart = [];
+    let currentBill = null;
+
+    window.onload = function() {
+      loadUserSession();
+      window.addEventListener('storage', handleStorageChange);
+    };
+
+    function switchAuthRole(role) {
+      const cashierForm = document.getElementById('cashierForm');
+      const clientForm = document.getElementById('clientForm');
+      const tabCashiereBtn = document.getElementById('tabCashiereBtn');
+      const tabClientBtn = document.getElementById('tabClientBtn');
+
+      if (role === 'cashier') {
+        cashierForm.classList.remove('hidden');
+        clientForm.classList.add('hidden');
+        tabCashiereBtn.className = "py-2.5 rounded-xl text-xs font-bold transition bg-dacha-dark text-white shadow-md";
+        tabClientBtn.className = "py-2.5 rounded-xl text-xs font-bold transition text-gray-600 hover:text-gray-900";
+      } else {
+        cashierForm.classList.add('hidden');
+        clientForm.classList.remove('hidden');
+        tabClientBtn.className = "py-2.5 rounded-xl text-xs font-bold transition gold-gradient text-dacha-dark shadow-md";
+        tabCashiereBtn.className = "py-2.5 rounded-xl text-xs font-bold transition text-gray-600 hover:text-gray-900";
+      }
+    }
+
+    function handleCashierAuth(e) {
+      e.preventDefault();
+      const name = document.getElementById('cashierName').value;
+      const shift = document.getElementById('cashierShift').value;
+
+      currentUser = { role: 'cashier', name, shift };
+      localStorage.setItem('dacha_user', JSON.stringify(currentUser));
+      renderApp();
+    }
+
+    function handleClientAuth(e) {
+      e.preventDefault();
+      const name = document.getElementById('clientName').value;
+      const plot = document.getElementById('clientPlot').value;
+      const balance = parseFloat(document.getElementById('clientBalance').value) || 0;
+
+      currentUser = { role: 'client', name, plot, balance };
+      localStorage.setItem('dacha_user', JSON.stringify(currentUser));
+      renderApp();
+    }
+
+    function logout() {
+      localStorage.removeItem('dacha_user');
+      currentUser = null;
+      document.getElementById('authScreen').classList.remove('hidden');
+      document.getElementById('cashierApp').classList.add('hidden');
+      document.getElementById('clientApp').classList.add('hidden');
+      document.getElementById('userInfoHeader').classList.add('hidden');
+    }
+
+    function loadUserSession() {
+      const saved = localStorage.getItem('dacha_user');
+      if (saved) {
+        currentUser = JSON.parse(saved);
+        renderApp();
+      }
+    }
+
+    function renderApp() {
+      if (!currentUser) return;
+
+      document.getElementById('authScreen').classList.add('hidden');
+      document.getElementById('userInfoHeader').classList.remove('hidden');
+      document.getElementById('userInfoHeader').classList.add('flex');
+
+      document.getElementById('userNameHeader').innerText = currentUser.name;
+
+      if (currentUser.role === 'cashier') {
+        document.getElementById('userRoleHeader').innerText = `${currentUser.shift} (Кассир)`;
+        document.getElementById('cashierApp').classList.remove('hidden');
+        document.getElementById('clientApp').classList.add('hidden');
+        renderCart();
+        updateCashierStats();
+        renderCashierJournal();
+      } else {
+        document.getElementById('userRoleHeader').innerText = `${currentUser.plot} (Дачник)`;
+        document.getElementById('clientApp').classList.remove('hidden');
+        document.getElementById('cashierApp').classList.add('hidden');
+        
+        document.getElementById('clientPlotTitle').innerText = currentUser.plot;
+        document.getElementById('clientNameTitle').innerText = currentUser.name;
+        document.getElementById('clientBalanceDisplay').innerText = `${currentUser.balance.toLocaleString()} ₸`;
+        renderClientBills();
+        renderClientReceipts();
+      }
+    }
+
+    function updateCashierStats() {
+      const stats = JSON.parse(localStorage.getItem('dacha_stats') || '{"turnover": 0, "count": 0}');
+      document.getElementById('cashierTurnover').innerText = `${stats.turnover.toLocaleString()} ₸`;
+      document.getElementById('cashierBillsCount').innerText = stats.count;
+    }
+
+    function addToCart(title, price) {
+      const existing = cart.find(i => i.title === title);
+      if (existing) {
+        existing.count++;
+      } else {
+        cart.push({ title, price, count: 1 });
+      }
+      renderCart();
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      renderCart();
+    }
+
+    function renderCart() {
+      const list = document.getElementById('cartList');
+      const totalEl = document.getElementById('cartTotal');
+
+      if (cart.length === 0) {
+        list.innerHTML = `<div class="text-center text-gray-400 text-xs py-6 font-medium">Корзина пуста. Выберите товар выше.</div>`;
+        totalEl.innerText = `0 ₸`;
+        return;
+      }
+
+      let total = 0;
+      list.innerHTML = cart.map((item, idx) => {
+        const itemTotal = item.price * item.count;
+        total += itemTotal;
+        return `
+          <div class="flex justify-between items-center bg-white/70 p-2.5 rounded-xl text-xs border border-gray-100">
+            <div>
+              <span class="font-bold text-gray-800">${item.title}</span>
+              <span class="text-gray-400 block text-[10px]">${item.price.toLocaleString()} ₸ x ${item.count}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-black text-dacha-dark">${itemTotal.toLocaleString()} ₸</span>
+              <button onclick="removeFromCart(${idx})" class="text-red-400 hover:text-red-600 font-bold px-1.5">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      totalEl.innerText = `${total.toLocaleString()} ₸`;
+    }
+
+    function generatePaymentBill() {
+      if (cart.length === 0) {
+        alert("Добавьте хотя бы один товар в корзину!");
+        return;
+      }
+
+      const total = cart.reduce((sum, item) => sum + (item.price * item.count), 0);
+      const targetPlot = document.getElementById('targetPlotInput').value || 'Участок №42';
+      const customBillId = document.getElementById('customBillIdInput').value || ('BILL-' + Date.now());
+
+      currentBill = {
+        id: customBillId,
+        plot: targetPlot,
+        amount: total,
+        items: [...cart],
+        status: 'pending',
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      localStorage.setItem('dacha_active_bill', JSON.stringify(currentBill));
+
+      const statusEl = document.getElementById('billStatus');
+      statusEl.classList.remove('hidden');
+      statusEl.innerText = `Счёт ${customBillId} выставлен для ${targetPlot}! Ожидание оплаты...`;
+      statusEl.className = "mt-3 text-xs font-bold p-2.5 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 animate-pulse";
+    }
+
+    function openQrModal() {
+      if (!currentBill) {
+        alert("Сначала сформируйте и выставьте счет!");
+        return;
+      }
+
+      document.getElementById('modalBillInfo').innerText = `Счёт: ${currentBill.id} (${currentBill.plot})`;
+      document.getElementById('modalBillAmount').innerText = `${currentBill.amount.toLocaleString()} ₸`;
+
+      const modalQrBox = document.getElementById('modalQrBox');
+      modalQrBox.innerHTML = '';
+
+      new QRCode(modalQrBox, {
+        text: `https://dacha-cb.kz/pay?bill=${currentBill.id}&amount=${currentBill.amount}`,
+        width: 150,
+        height: 150,
+        colorDark: "#082b15",
+        colorLight: "#ffffff"
+      });
+
+      const modal = document.getElementById('qrModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeQrModal() {
+      const modal = document.getElementById('qrModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // --- УПРАВЛЕНИЕ ПОПОЛНЕНИЕМ БАЛАНСА КЛИЕНТА ---
+    function openTopupModal() {
+      const modal = document.getElementById('topupModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTopupModal() {
+      const modal = document.getElementById('topupModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function confirmTopup() {
+      const amount = parseFloat(document.getElementById('topupAmountInput').value) || 0;
+      if (amount <= 0) {
+        alert("Введите корректную сумму пополнения!");
+        return;
+      }
+
+      currentUser.balance += amount;
+      localStorage.setItem('dacha_user', JSON.stringify(currentUser));
+
+      // Записываем в историю как пополнение
+      let receipts = JSON.parse(localStorage.getItem('dacha_receipts') || '[]');
+      receipts.unshift({
+        id: 'TOPUP-' + Date.now(),
+        plot: currentUser.plot,
+        amount: amount,
+        items: [{ title: 'Пополнение кошелька СНТ', count: 1, price: amount }],
+        status: 'topup',
+        paidTime: new Date().toLocaleString()
+      });
+      localStorage.setItem('dacha_receipts', JSON.stringify(receipts));
+
+      closeTopupModal();
+      renderApp();
+      alert(`Баланс успешно пополнен на ${amount.toLocaleString()} ₸!`);
+    }
+
+    // --- ЗАКАЗ ДОКУМЕНТОВ И ЖАЛОБЫ ---
+    function requestDocument(docName) {
+      const text = `========================================\n` +
+                   `        ДАЧНЫЙ ЦЕНТРОБАНК КАЗАХСТАНА    \n` +
+                   `        ОФИЦИАЛЬНЫЙ ДОКУМЕНТ СНТ        \n` +
+                   `========================================\n` +
+                   `Документ:    ${docName}\n` +
+                   `Владелец:    ${currentUser.name}\n` +
+                   `Участок:     ${currentUser.plot}\n` +
+                   `Дата выдачи: ${new Date().toLocaleString()}\n` +
+                   `Статус:      Действителен (Подписано ЦБ)\n` +
+                   `========================================\n` +
+                   `Правление СНТ подтверждает данный статус.\n`;
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docName}_${currentUser.plot}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function sendComplaint() {
+      const text = document.getElementById('complaintText').value.trim();
+      if (!text) {
+        alert("Напишите текст жалобы или предложения!");
+        return;
+      }
+      alert("Ваше обращение успешно зарегистрировано в Дачном Центробанке и передано председателю СНТ!");
+      document.getElementById('complaintText').value = '';
+    }
+
+    function renderClientBills() {
+      const list = document.getElementById('clientBillsList');
+      const countEl = document.getElementById('billsCount');
+      const activeBill = JSON.parse(localStorage.getItem('dacha_active_bill'));
+
+      if (!activeBill || activeBill.status !== 'pending' || activeBill.plot !== currentUser.plot) {
+        list.innerHTML = `<div class="text-center text-gray-400 py-6 text-xs font-medium">У вас нет активных счетов к оплате.</div>`;
+        countEl.innerText = `0 счетов`;
+        return;
+      }
+
+      countEl.innerText = `1 счет`;
+      list.innerHTML = `
+        <div class="bg-amber-50/80 border border-amber-200 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 shadow-sm">
+          <div>
+            <div class="text-[10px] font-extrabold text-amber-800 uppercase tracking-widest">Счёт № ${activeBill.id}</div>
+            <div class="text-2xl font-black text-dacha-dark mt-0.5">${activeBill.amount.toLocaleString()} ₸</div>
+            <div class="text-xs text-gray-500 font-medium mt-1">${activeBill.items.map(i => i.title + ' (' + i.count + ')').join(', ')}</div>
+          </div>
+          <button onclick="payBill()" class="gold-gradient text-dacha-dark font-black px-5 py-3 rounded-xl text-xs uppercase tracking-wider shadow-md hover:opacity-90 active:scale-95 transition">
+            Оплатить через Kaspi ₸
+          </button>
+        </div>
+      `;
+    }
+
+    function payBill() {
+      const activeBill = JSON.parse(localStorage.getItem('dacha_active_bill'));
+      if (!activeBill) return;
+
+      if (currentUser.balance < activeBill.amount) {
+        alert("Недостаточно средств на балансе дачного кошелька! Пополните счёт.");
+        return;
+      }
+
+      currentUser.balance -= activeBill.amount;
+      localStorage.setItem('dacha_user', JSON.stringify(currentUser));
+
+      activeBill.status = 'paid';
+      activeBill.paidTime = new Date().toLocaleString();
+      localStorage.setItem('dacha_active_bill', JSON.stringify(activeBill));
+
+      let receipts = JSON.parse(localStorage.getItem('dacha_receipts') || '[]');
+      receipts.unshift(activeBill);
+      localStorage.setItem('dacha_receipts', JSON.stringify(receipts));
+
+      let stats = JSON.parse(localStorage.getItem('dacha_stats') || '{"turnover": 0, "count": 0}');
+      stats.turnover += activeBill.amount;
+      stats.count += 1;
+      localStorage.setItem('dacha_stats', JSON.stringify(stats));
+
+      renderApp();
+      alert("Платёж успешно проведен! Чек доступен в архиве для скачивания.");
+    }
+
+    function renderCashierJournal() {
+      const list = document.getElementById('cashierJournalList');
+      const receipts = JSON.parse(localStorage.getItem('dacha_receipts') || '[]').filter(r => r.status === 'paid');
+      document.getElementById('journalCount').innerText = receipts.length;
+
+      if (receipts.length === 0) {
+        list.innerHTML = `<div class="text-center text-gray-400 py-6 text-xs font-medium">Пока нет проведенных платежей за эту смену.</div>`;
+        return;
+      }
+
+      list.innerHTML = receipts.map(r => `
+        <div class="flex justify-between items-center bg-white/70 p-3 rounded-xl text-xs border border-gray-100">
+          <div>
+            <span class="font-bold text-dacha-dark">${r.id}</span> (${r.plot})
+            <span class="text-gray-400 block text-[10px]">${r.paidTime} — ${r.items.map(i => i.title).join(', ')}</span>
+          </div>
+          <div class="font-black text-emerald-600">+${r.amount.toLocaleString()} ₸</div>
+        </div>
+      `).join('');
+    }
+
+    function renderClientReceipts() {
+      const list = document.getElementById('clientReceiptsList');
+      const receipts = JSON.parse(localStorage.getItem('dacha_receipts') || '[]').filter(r => r.plot === currentUser.plot);
+
+      if (receipts.length === 0) {
+        list.innerHTML = `<div class="text-center text-gray-400 py-6 text-xs font-medium">История чеков пуста.</div>`;
+        return;
+      }
+
+      list.innerHTML = receipts.map((r, idx) => `
+        <div class="bg-white/80 border border-gray-200 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 shadow-sm">
+          <div>
+            <div class="text-[10px] font-extrabold ${r.status === 'topup' ? 'text-amber-600' : 'text-dacha-main'} uppercase">
+              ${r.status === 'topup' ? 'Пополнение кошелька' : 'Оплаченный чек № ' + r.id}
+            </div>
+            <div class="text-lg font-black text-gray-900">${r.status === 'topup' ? '+' : ''}${r.amount.toLocaleString()} ₸</div>
+            <div class="text-xs text-gray-500">${r.paidTime} | ${r.items.map(i => i.title + ' (' + i.count + ')').join(', ')}</div>
+          </div>
+          ${r.status !== 'topup' ? `
+            <button onclick="downloadReceipt(${idx})" class="green-gradient text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-md hover:opacity-95 transition flex items-center gap-1.5">
+              <i class="fa-solid fa-download"></i> Скачать чек (.txt)
+            </button>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function downloadReceipt(index) {
+      const receipts = JSON.parse(localStorage.getItem('dacha_receipts') || '[]').filter(r => r.plot === currentUser.plot && r.status !== 'topup');
+      const r = receipts[index];
+      if (!r) return;
+
+      const text = `========================================\n` +
+                   `        ДАЧНЫЙ ЦЕНТРОБАНК КАЗАХСТАНА    \n` +
+                   `        ЭЛЕКТРОННЫЙ КАССОВЫЙ ЧЕК        \n` +
+                   `========================================\n` +
+                   `Номер счета: ${r.id}\n` +
+                   `Участок:     ${r.plot}\n` +
+                   `Дата/Время:  ${r.paidTime}\n` +
+                   `Статус:      УСПЕШНО ОПЛАЧЕНО (Kaspi ₸)\n` +
+                   `----------------------------------------\n` +
+                   `СОСТАВ СЧЕТА:\n` +
+                   r.items.map(i => ` - ${i.title} x${i.count} = ${(i.price * i.count).toLocaleString()} ₸`).join('\n') + `\n` +
+                   `----------------------------------------\n` +
+                   `ИТОГО К ОПЛАТЕ: ${r.amount.toLocaleString()} ₸\n` +
+                   `========================================\n` +
+                   `Спасибо за своевременную оплату СНТ!\n`;
+
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Chek_${r.id}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function handleStorageChange(e) {
+      if (e.key === 'dacha_active_bill' || e.key === 'dacha_receipts') {
+        renderApp();
+      }
+    }
+  </script>
+</body>
+</html>
